@@ -4,8 +4,13 @@ import { ChevronLeft } from 'lucide-react'
 import { SignInForm } from '@/components/auth/sign-in-form'
 import { Button } from '@/components/ui/button'
 
+/** Read AUTH_GOOGLE_* from the environment on each request (not at build time). */
+export const dynamic = 'force-dynamic'
+
 export default function SignInPage() {
-  const googleEnabled = Boolean(process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET)
+  const googleEnabled = Boolean(
+    process.env.AUTH_GOOGLE_ID?.trim() && process.env.AUTH_GOOGLE_SECRET?.trim(),
+  )
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-muted/40 to-background">

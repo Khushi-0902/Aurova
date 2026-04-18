@@ -55,12 +55,15 @@ const emailOtpProvider = Credentials({
   },
 })
 
+const googleId = process.env.AUTH_GOOGLE_ID?.trim()
+const googleSecret = process.env.AUTH_GOOGLE_SECRET?.trim()
+
 const providers: NextAuthConfig['providers'] =
-  process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET
+  googleId && googleSecret
     ? [
         Google({
-          clientId: process.env.AUTH_GOOGLE_ID,
-          clientSecret: process.env.AUTH_GOOGLE_SECRET,
+          clientId: googleId,
+          clientSecret: googleSecret,
         }),
         emailOtpProvider,
       ]
