@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { Instagram, Twitter, Linkedin, Youtube, Mail, Phone, MapPin } from 'lucide-react'
+import { PHONE_DISPLAY, PHONE_TEL } from '@/lib/contact'
 
 export function SiteFooter() {
   return (
@@ -8,7 +9,7 @@ export function SiteFooter() {
         <div className="grid gap-12 md:grid-cols-2 lg:grid-cols-4">
           {/* Brand */}
           <div className="space-y-4">
-            <Link href="/" className="flex items-center gap-2">
+            <Link href="/home" className="flex items-center gap-2">
               <div className="size-10 rounded-xl gradient-primary flex items-center justify-center">
                 <span className="text-primary-foreground font-serif font-bold text-xl">A</span>
               </div>
@@ -98,11 +99,11 @@ export function SiteFooter() {
               </li>
               <li>
                 <a
-                  href="tel:+919876543210"
+                  href={PHONE_TEL}
                   className="flex items-center gap-3 text-muted-foreground hover:text-primary transition-colors"
                 >
                   <Phone className="size-4" />
-                  +91 98765 43210
+                  {PHONE_DISPLAY}
                 </a>
               </li>
               <li>

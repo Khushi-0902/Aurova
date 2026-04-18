@@ -1,6 +1,7 @@
 'use client'
 
 import { MessageCircle } from 'lucide-react'
+import { WHATSAPP_URL } from '@/lib/contact'
 import type { Property } from '@/lib/property-data'
 
 interface MobileCTAProps {
@@ -17,7 +18,7 @@ export function MobileCTA({ property }: MobileCTAProps) {
     const message = encodeURIComponent(
       `Hi! I'm interested in ${property.name}. Can you share more details?`
     )
-    window.open(`https://wa.me/919876543210?text=${message}`, '_blank')
+    window.open(`${WHATSAPP_URL}?text=${message}`, '_blank')
   }
 
   if (!lowestRent) return null

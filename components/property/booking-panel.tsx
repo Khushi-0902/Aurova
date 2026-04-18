@@ -3,7 +3,8 @@
 import { MessageCircle, CalendarCheck, Phone, Star } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import type { Property, Room } from '@/lib/property-data'
+import { PHONE_TEL, WHATSAPP_URL } from '@/lib/contact'
+import type { Property } from '@/lib/property-data'
 
 interface BookingPanelProps {
   property: Property
@@ -19,7 +20,7 @@ export function BookingPanel({ property }: BookingPanelProps) {
     const message = encodeURIComponent(
       `Hi! I'm interested in ${property.name}. Can you share more details about available rooms?`
     )
-    window.open(`https://wa.me/919876543210?text=${message}`, '_blank')
+    window.open(`${WHATSAPP_URL}?text=${message}`, '_blank')
   }
 
   const handleBookTour = () => {
@@ -27,7 +28,7 @@ export function BookingPanel({ property }: BookingPanelProps) {
   }
 
   const handleCall = () => {
-    window.open('tel:+919876543210', '_self')
+    window.open(PHONE_TEL, '_self')
   }
 
   return (

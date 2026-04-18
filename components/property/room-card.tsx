@@ -23,6 +23,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { WHATSAPP_URL } from '@/lib/contact'
 import { cn } from '@/lib/utils'
 import type { Room } from '@/lib/property-data'
 
@@ -46,7 +47,7 @@ export function RoomCard({ room, index }: RoomCardProps) {
 
   const handleWhatsApp = () => {
     const message = encodeURIComponent(`Hi! I'm interested in ${room.name} at this property. Is it still available?`)
-    window.open(`https://wa.me/919876543210?text=${message}`, '_blank')
+    window.open(`${WHATSAPP_URL}?text=${message}`, '_blank')
   }
 
   const handleBookTour = () => {

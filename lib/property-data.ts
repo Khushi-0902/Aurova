@@ -74,6 +74,8 @@ export interface Amenity {
 
 export interface Property {
   id: string
+  /** URL path segment, e.g. "hsr-ki-vibe" → /hsr-ki-vibe */
+  slug: string
   name: string
   tagline: string
   type: '2BHK' | '3BHK' | '4BHK'
@@ -97,6 +99,7 @@ export interface Property {
 
 export const sampleProperty: Property = {
   id: 'prop-001',
+  slug: 'hsr-ki-vibe',
   name: 'HSR Ki Vibe',
   tagline: 'Where modern living meets community spirit',
   type: '4BHK',
@@ -330,4 +333,64 @@ export const sampleProperty: Property = {
     'Flexible lease terms',
     'All utilities included',
   ],
+}
+
+/** All property detail pages; add entries here as you ship more homes. */
+export const allProperties: Property[] = [sampleProperty]
+
+export function getPropertyBySlug(slug: string): Property | undefined {
+  const normalized = slug.trim().toLowerCase()
+  return allProperties.find((p) => p.slug === normalized)
+}
+
+/** Values must match the marketing home location `<select>` options. */
+export const SEARCH_AREA_VALUES = [
+  'HSR Layout',
+  'Koramangala',
+  'Indiranagar',
+  'Whitefield',
+  'Bellandur',
+] as const
+
+export type SearchAreaValue = (typeof SEARCH_AREA_VALUES)[number]
+
+export function inferAreaKeyFromLabel(text: string): SearchAreaValue | '' {
+  const t = text.toLowerCase()
+  if (t.includes('bellandur')) return 'Bellandur'
+  if (t.includes('whitefield')) return 'Whitefield'
+  if (t.includes('indiranagar')) return 'Indiranagar'
+  if (t.includes('koramangala')) return 'Koramangala'
+  if (t.includes('hsr layout') || t.includes('hsr')) return 'HSR Layout'
+  return ''
+}
+
+export function inferPropertyAreaKey(p: Property): SearchAreaValue | '' {
+  return inferAreaKeyFromLabel(`${p.address} ${p.city} ${p.name}`)
+}
+
+export interface HomePropertyCard {
+  slug: string
+  name: string
+  location: string
+  /** Lowest monthly room rent shown on the home grid */
+  rentFrom: number
+  image: string
+  /** Area label for search filters; from address/city when possible */
+  areaKey: SearchAreaValue | ''
+}
+
+export function getHomePropertyCards(): HomePropertyCard[] {
+  return allProperties.map((p) => {
+    const rents = p.rooms.map((r) => r.rent).filter((n): n is number => typeof n === 'number')
+    const rentFrom = rents.length > 0 ? Math.min(...rents) : 0
+    const hero = p.images.find((i) => i.section === 'hero') ?? p.images[0]
+    return {
+      slug: p.slug,
+      name: p.name,
+      location: `${p.address}, ${p.city}`,
+      rentFrom,
+      image: hero?.url ?? '',
+      areaKey: inferPropertyAreaKey(p),
+    }
+  })
 }
