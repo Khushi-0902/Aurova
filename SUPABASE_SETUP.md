@@ -91,6 +91,53 @@ review), edit its `data` in the Table Editor, or ask Claude for an `UPDATE`.
 
 ---
 
+## Coming soon homes and live events
+
+The home page has two sections: **Curated** (live, bookable homes) and **Coming
+soon** (teaser cards for homes that aren't open yet). Coming-soon homes host
+**live events** — movie nights, gaming nights, and free tours — that guests book
+over WhatsApp.
+
+One-time setup: run [`supabase/events-and-coming-soon.sql`](supabase/events-and-coming-soon.sql)
+in the SQL Editor (after `schema.sql` + `seed.sql`). It adds a `status` column
+to `properties`, creates the `events` table, and seeds a few sample events.
+
+How it works:
+- A property's `status` is either `coming_soon` or `live`. Curated shows `live`;
+  Coming soon shows `coming_soon`.
+- A home **starts** as `coming_soon` (with events already running). When it's
+  ready, flip it to `live` — it moves into Curated and its events carry over.
+- Events live in the `events` table, one row per event, with a `fee_inr`
+  (`0` = free, e.g. a tour). "Attend" / "Book free" opens WhatsApp pre-filled
+  with the event details; you confirm and collect payment manually.
+
+Add a coming-soon home (teaser only — no rooms/photos needed):
+
+```sql
+insert into public.properties (slug, name, city, published, status, sort_order, data)
+values ('jayanagar-jewel', 'Jayanagar Jewel', 'Bangalore', true, 'coming_soon', 20,
+  $json$ {"tagline":"A quiet gem in old Bangalore","address":"Jayanagar 4th Block","city":"Bangalore"} $json$::jsonb);
+```
+
+Add events to it:
+
+```sql
+insert into public.events (property_slug, title, kind, starts_at, description, fee_inr, sort_order) values
+  ('jayanagar-jewel', 'Movie night', 'movie', '2026-09-20 20:00+05:30', 'Rooftop screening + dinner.', 299, 1),
+  ('jayanagar-jewel', 'Property tour', 'tour', '2026-09-22 11:00+05:30', 'Guided walkthrough with our host.', 0, 2);
+```
+
+Move a home from Coming soon to Curated when it's ready (its events stay):
+
+```sql
+update public.properties set status = 'live' where slug = 'jayanagar-jewel';
+```
+
+`kind` must be one of `movie`, `gaming`, `tour`, `other`. Set an event's
+`active = false` to hide it without deleting.
+
+---
+
 ## Fixing the sign-in email error
 
 The "Continue with Google" button already works. The **email code** option was
@@ -122,6 +169,7 @@ You also need `RESEND_API_KEY` set (https://resend.com/api-keys) in both places.
 |------|---------|
 | `supabase/schema.sql` | Tables + security rules. Run once. |
 | `supabase/seed.sql` | Loads the current content. Run once, after schema. |
+| `supabase/events-and-coming-soon.sql` | Adds status + events, seeds coming-soon homes. Run once. |
 | `supabase/add-property-template.sql` | Copy/edit/run to add a property. |
 | `lib/supabase/client.ts` | The public (anon) Supabase client for reads. |
 | `lib/supabase/admin.ts` | Server-only service-role client (wishlist writes). |

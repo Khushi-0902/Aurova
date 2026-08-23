@@ -1,8 +1,11 @@
 import { MarketingHome } from '@/components/home/marketing-home'
+import type { ComingSoonItem } from '@/components/home/coming-soon-section'
 import {
+  buildEventsBySlug,
+  fetchActiveEvents,
+  fetchComingSoonProperties,
+  fetchCuratedListings,
   fetchDemographics,
-  fetchFeaturedListings,
-  fetchHomePropertyCards,
   fetchStats,
   fetchTestimonials,
 } from '@/lib/data/content'
@@ -12,15 +15,33 @@ import {
 export const revalidate = 60
 
 export default async function HomePage() {
-  const cards = await fetchHomePropertyCards()
-  const [featured, stats, testimonials, demographics] = await Promise.all([
-    fetchFeaturedListings(cards),
+  const [curated, comingSoonRaw, events, stats, testimonials, demographics] = await Promise.all([
+    fetchCuratedListings(),
+    fetchComingSoonProperties(),
+    fetchActiveEvents(),
     fetchStats(),
     fetchTestimonials(),
     fetchDemographics(),
   ])
 
+  // Keep only upcoming events (this runs on the server, so the wall-clock read
+  // is safe and won't cause a client hydration mismatch).
+  const now = Date.now()
+  const upcomingEvents = events.filter((e) => new Date(e.startsAt).getTime() >= now)
+  const eventsBySlug = buildEventsBySlug(upcomingEvents)
+  const comingSoon: ComingSoonItem[] = comingSoonRaw.map((c) => ({
+    ...c,
+    events: eventsBySlug[c.slug] ?? [],
+  }))
+
   return (
-    <MarketingHome featured={featured} stats={stats} testimonials={testimonials} demographics={demographics} />
+    <MarketingHome
+      curated={curated}
+      comingSoon={comingSoon}
+      eventsBySlug={eventsBySlug}
+      stats={stats}
+      testimonials={testimonials}
+      demographics={demographics}
+    />
   )
 }

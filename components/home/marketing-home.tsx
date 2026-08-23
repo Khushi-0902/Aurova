@@ -47,7 +47,9 @@ import {
   type FeaturedBadge,
   type FeaturedListing,
 } from '@/lib/home-marketing-data'
-import type { DemographicItem, StatItem, TestimonialItem } from '@/lib/data/content'
+import type { DemographicItem, PropertyEvent, StatItem, TestimonialItem } from '@/lib/data/content'
+import { ComingSoonSection, type ComingSoonItem } from '@/components/home/coming-soon-section'
+import { EventsButton } from '@/components/home/events-modal'
 import { PHONE_DISPLAY, PHONE_TEL, WHATSAPP_URL } from '@/lib/contact'
 
 const FEATURED_PAGE_SIZE = 4
@@ -184,7 +186,9 @@ function WishlistCardHeart({ slug }: { slug: string }) {
 }
 
 type MarketingHomeProps = {
-  featured: FeaturedListing[]
+  curated: FeaturedListing[]
+  comingSoon: ComingSoonItem[]
+  eventsBySlug: Record<string, PropertyEvent[]>
   stats: StatItem[]
   testimonials: TestimonialItem[]
   demographics: DemographicItem[]
@@ -327,8 +331,15 @@ function higherBudgetSuggestions(currentBudget: string): { value: string; label:
   return BUDGET_ORDER.slice(i + 1).map((value) => ({ value, label: budgetOptionLabel(value) }))
 }
 
-export function MarketingHome({ featured, stats, testimonials, demographics }: MarketingHomeProps) {
-  const allFeatured = featured
+export function MarketingHome({
+  curated,
+  comingSoon,
+  eventsBySlug,
+  stats,
+  testimonials,
+  demographics,
+}: MarketingHomeProps) {
+  const allFeatured = curated
   const [location, setLocation] = useState('')
   const [budget, setBudget] = useState('')
 
@@ -721,6 +732,14 @@ export function MarketingHome({ featured, stats, testimonials, demographics }: M
                       {BADGE_LABEL[item.badge]}
                     </span>
                     {item.slug ? <WishlistCardHeart slug={item.slug} /> : null}
+                    {item.slug && (eventsBySlug[item.slug]?.length ?? 0) > 0 ? (
+                      <EventsButton
+                        propertyName={item.name}
+                        events={eventsBySlug[item.slug] ?? []}
+                        label="Events"
+                        className="absolute left-2.5 top-10 z-20 inline-flex items-center gap-1 rounded-full bg-white/95 px-2.5 py-1 text-[10px] font-semibold text-[var(--mp-chocolate)] shadow-md ring-1 ring-orange-950/10 backdrop-blur-sm transition hover:bg-white sm:left-3 sm:top-11 sm:text-[11px]"
+                      />
+                    ) : null}
                     <div className="absolute inset-x-0 bottom-0 space-y-1.5 p-3 pb-3.5 text-white sm:space-y-2 sm:p-4 sm:pb-4">
                       <h3 className="font-serif text-base font-semibold leading-tight tracking-tight drop-shadow-sm sm:text-lg">
                         {item.name}
@@ -815,6 +834,8 @@ export function MarketingHome({ featured, stats, testimonials, demographics }: M
         </div>
         ) : null}
       </section>
+
+      <ComingSoonSection items={comingSoon} />
 
       {/* How */}
       <section id="how" className="scroll-mt-24 px-4 py-16 sm:px-6 sm:py-20">

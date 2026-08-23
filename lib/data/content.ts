@@ -8,11 +8,10 @@
 import { getSupabase } from '@/lib/supabase/client'
 import {
   buildHomePropertyCards,
-  type HomePropertyCard,
+  inferAreaKeyFromLabel,
   type Property,
-  type SearchAreaValue,
 } from '@/lib/property-data'
-import { getFeaturedListings, type FeaturedBadge, type FeaturedListing } from '@/lib/home-marketing-data'
+import { getFeaturedListings, type FeaturedListing } from '@/lib/home-marketing-data'
 
 export type StatItem = { id: string; icon: 'users' | 'map' | 'trend' | 'award'; value: string; label: string }
 export type TestimonialItem = {
@@ -26,69 +25,113 @@ export type TestimonialItem = {
 }
 export type DemographicItem = { pct: string; label: string; color: string }
 
-// --- Properties -------------------------------------------------------------
+export type ComingSoonCard = {
+  slug: string
+  name: string
+  /** Short area label, e.g. "Indiranagar" */
+  area: string
+  tagline: string
+}
 
-/** All published properties, ordered for the home grid. */
+export type EventKind = 'movie' | 'gaming' | 'tour' | 'other'
+export type PropertyEvent = {
+  id: string
+  propertySlug: string
+  title: string
+  kind: EventKind
+  /** ISO timestamp */
+  startsAt: string
+  description: string
+  /** Attendance fee in ₹; 0 means free */
+  feeInr: number
+}
+
+// --- Properties (live / curated) -------------------------------------------
+
+/** All published, LIVE properties, ordered for the home grid. */
 export async function fetchAllProperties(): Promise<Property[]> {
   const { data, error } = await getSupabase()
     .from('properties')
     .select('data')
     .eq('published', true)
+    .eq('status', 'live')
     .order('sort_order', { ascending: true })
 
   if (error) throw error
   return (data ?? []).map((row) => row.data as Property)
 }
 
-/** A single property by slug, or undefined if it doesn't exist. */
+/** A single LIVE property by slug, or undefined. Coming-soon slugs return undefined. */
 export async function fetchPropertyBySlug(slug: string): Promise<Property | undefined> {
   const { data, error } = await getSupabase()
     .from('properties')
     .select('data')
     .eq('slug', slug.trim().toLowerCase())
     .eq('published', true)
+    .eq('status', 'live')
     .maybeSingle()
 
   if (error) throw error
   return (data?.data as Property) ?? undefined
 }
 
-/** Home-grid cards, derived from the published properties. */
-export async function fetchHomePropertyCards(): Promise<HomePropertyCard[]> {
+/** Curated (live) cards for the home grid. */
+export async function fetchCuratedListings(): Promise<FeaturedListing[]> {
   const properties = await fetchAllProperties()
-  return buildHomePropertyCards(properties)
+  return getFeaturedListings(buildHomePropertyCards(properties), [])
 }
 
-// --- Marketing content ------------------------------------------------------
+// --- Coming soon ------------------------------------------------------------
 
-/** "Coming soon" placeholder listings on the home page. */
-export async function fetchComingSoonListings(): Promise<FeaturedListing[]> {
+/** Teaser cards for homes that aren't live yet. */
+export async function fetchComingSoonProperties(): Promise<ComingSoonCard[]> {
   const { data, error } = await getSupabase()
-    .from('coming_soon_listings')
-    .select('*')
+    .from('properties')
+    .select('slug, name, data')
+    .eq('published', true)
+    .eq('status', 'coming_soon')
     .order('sort_order', { ascending: true })
 
   if (error) throw error
+  return (data ?? []).map((r) => {
+    const d = (r.data ?? {}) as { tagline?: string; address?: string; city?: string }
+    const area = inferAreaKeyFromLabel(`${d.address ?? ''} ${d.city ?? ''} ${r.name}`) || (d.city ?? '')
+    return { slug: r.slug as string, name: r.name as string, area, tagline: d.tagline ?? '' }
+  })
+}
+
+// --- Events -----------------------------------------------------------------
+
+/** All active events across every property, earliest first. */
+export async function fetchActiveEvents(): Promise<PropertyEvent[]> {
+  const { data, error } = await getSupabase()
+    .from('events')
+    .select('*')
+    .eq('active', true)
+    .order('starts_at', { ascending: true })
+
+  if (error) throw error
   return (data ?? []).map((r) => ({
-    id: r.id,
-    slug: null,
-    name: r.name,
-    location: r.location,
-    image: r.image,
-    beds: r.beds,
-    baths: r.baths,
-    sqft: r.sqft,
-    priceMonthly: r.price_monthly,
-    badge: r.badge as FeaturedBadge,
-    areaKey: r.area_key as SearchAreaValue,
+    id: r.id as string,
+    propertySlug: r.property_slug as string,
+    title: r.title as string,
+    kind: r.kind as EventKind,
+    startsAt: r.starts_at as string,
+    description: (r.description as string) ?? '',
+    feeInr: (r.fee_inr as number) ?? 0,
   }))
 }
 
-/** Full featured list: the first live property + the coming-soon placeholders. */
-export async function fetchFeaturedListings(live: HomePropertyCard[]): Promise<FeaturedListing[]> {
-  const comingSoon = await fetchComingSoonListings()
-  return getFeaturedListings(live, comingSoon)
+/** Group events by their property slug. */
+export function buildEventsBySlug(events: PropertyEvent[]): Record<string, PropertyEvent[]> {
+  const map: Record<string, PropertyEvent[]> = {}
+  for (const e of events) {
+    ;(map[e.propertySlug] ??= []).push(e)
+  }
+  return map
 }
+
+// --- Marketing content ------------------------------------------------------
 
 /** "By the numbers" stat cards. */
 export async function fetchStats(): Promise<StatItem[]> {

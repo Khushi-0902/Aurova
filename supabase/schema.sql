@@ -161,3 +161,37 @@ drop trigger if exists properties_set_updated_at on public.properties;
 create trigger properties_set_updated_at
   before update on public.properties
   for each row execute function public.set_updated_at();
+
+-- ---------------------------------------------------------------------------
+-- Coming Soon + Live Events (see events-and-coming-soon.sql for data/migration)
+-- ---------------------------------------------------------------------------
+alter table public.properties
+  add column if not exists status text not null default 'live';
+alter table public.properties
+  drop constraint if exists properties_status_check;
+alter table public.properties
+  add constraint properties_status_check check (status in ('coming_soon', 'live'));
+create index if not exists properties_status_idx
+  on public.properties (published, status, sort_order);
+
+create table if not exists public.events (
+  id             uuid primary key default gen_random_uuid(),
+  property_slug  text not null references public.properties(slug) on delete cascade,
+  title          text not null,
+  kind           text not null default 'other' check (kind in ('movie', 'gaming', 'tour', 'other')),
+  starts_at      timestamptz not null,
+  description    text,
+  fee_inr        int not null default 0,   -- 0 = free (e.g. a tour)
+  active         boolean not null default true,
+  sort_order     int not null default 0,
+  created_at     timestamptz not null default now()
+);
+create index if not exists events_property_idx
+  on public.events (property_slug, active, starts_at);
+
+alter table public.events enable row level security;
+drop policy if exists "public read events" on public.events;
+create policy "public read events"
+  on public.events for select
+  to anon, authenticated
+  using (active = true);
