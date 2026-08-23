@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { CalendarClock, Film, Gamepad2, DoorOpen, Sparkles, X, type LucideIcon } from 'lucide-react'
 import type { EventKind, PropertyEvent } from '@/lib/data/content'
 import { WHATSAPP_URL } from '@/lib/contact'
@@ -41,6 +42,19 @@ type EventsButtonProps = {
 
 export function EventsButton({ propertyName, events, label = 'More', className }: EventsButtonProps) {
   const [open, setOpen] = useState(false)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => setMounted(true), [])
+
+  useEffect(() => {
+    if (!open) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = prev
+    }
+  }, [open])
+
   if (events.length === 0) return null
 
   return (
@@ -61,9 +75,10 @@ export function EventsButton({ propertyName, events, label = 'More', className }
         <CalendarClock className="size-4 shrink-0" aria-hidden />
       </button>
 
-      {open ? (
+      {open && mounted
+        ? createPortal(
         <div
-          className="fixed inset-0 z-[100] flex items-end justify-center bg-stone-950/50 p-0 backdrop-blur-sm sm:items-center sm:p-4"
+          className="fixed inset-0 z-[200] flex items-end justify-center bg-stone-950/60 p-0 backdrop-blur-md sm:items-center sm:p-4 aurova-modal-fade"
           role="dialog"
           aria-modal="true"
           aria-label={`Live events at ${propertyName}`}
@@ -74,7 +89,7 @@ export function EventsButton({ propertyName, events, label = 'More', className }
           }}
         >
           <div
-            className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl"
+            className="aurova-modal-pop max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-t-3xl bg-white shadow-[0_30px_80px_-20px_rgba(40,25,10,0.5)] ring-1 ring-black/5 sm:rounded-3xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="sticky top-0 flex items-start justify-between gap-4 border-b border-orange-950/10 bg-white/95 px-5 py-4 backdrop-blur">
@@ -135,8 +150,10 @@ export function EventsButton({ propertyName, events, label = 'More', className }
               Booking confirms over WhatsApp. Meet future flatmates and experience the space.
             </p>
           </div>
-        </div>
-      ) : null}
+        </div>,
+            document.body,
+          )
+        : null}
     </>
   )
 }
