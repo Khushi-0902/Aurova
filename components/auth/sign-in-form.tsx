@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { signIn } from '@/lib/auth-client'
@@ -12,14 +12,31 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp'
 
-type SignInFormProps = {
-  googleEnabled: boolean
-}
+type GoogleOAuthState = 'loading' | 'on' | 'off'
 
-export function SignInForm({ googleEnabled }: SignInFormProps) {
+export function SignInForm() {
   const searchParams = useSearchParams()
   const callbackUrl = searchParams.get('callbackUrl') || '/home'
   const error = searchParams.get('error')
+
+  const [googleOAuth, setGoogleOAuth] = useState<GoogleOAuthState>('loading')
+
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/auth/google-enabled')
+      .then((r) => r.json())
+      .then((data: { googleEnabled?: boolean }) => {
+        if (!cancelled) {
+          setGoogleOAuth(data.googleEnabled ? 'on' : 'off')
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setGoogleOAuth('off')
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const [step, setStep] = useState<'details' | 'otp'>('details')
   const [name, setName] = useState('')
@@ -107,7 +124,12 @@ export function SignInForm({ googleEnabled }: SignInFormProps) {
         ) : null}
       </CardHeader>
       <CardContent className="space-y-8">
-        {googleEnabled ? (
+        {googleOAuth === 'loading' ? (
+          <div className="flex h-11 items-center justify-center gap-2 text-xs text-muted-foreground">
+            <Loader2 className="size-4 animate-spin" aria-hidden />
+            Checking sign-in options…
+          </div>
+        ) : googleOAuth === 'on' ? (
           <div className="space-y-3">
             <Button
               type="button"
@@ -147,11 +169,17 @@ export function SignInForm({ googleEnabled }: SignInFormProps) {
             </div>
           </div>
         ) : (
-          <p className="text-center text-xs text-muted-foreground max-w-sm mx-auto leading-relaxed">
-            Next.js does <span className="font-medium text-foreground">not</span> read{' '}
-            <span className="font-mono">.env.example</span>. Add{' '}
-            <span className="font-mono">AUTH_GOOGLE_ID</span> and <span className="font-mono">AUTH_GOOGLE_SECRET</span>{' '}
-            to <span className="font-mono">.env.local</span>, then restart the dev server.
+          <p className="text-center text-xs text-muted-foreground max-w-md mx-auto leading-relaxed">
+            <span className="font-medium text-foreground">Google sign-in is off on this server.</span>{' '}
+            Set both <span className="font-mono">AUTH_GOOGLE_ID</span> and{' '}
+            <span className="font-mono">AUTH_GOOGLE_SECRET</span> (or{' '}
+            <span className="font-mono">GOOGLE_CLIENT_ID</span> /{' '}
+            <span className="font-mono">GOOGLE_CLIENT_SECRET</span>) in the environment that runs this site — no space
+            after <span className="font-mono">=</span>, no quotes unless the value itself needs them. Locally use{' '}
+            <span className="font-mono">.env.local</span> and restart <span className="font-mono">npm run dev</span>.
+            On Vercel: <span className="font-medium text-foreground">Project → Settings → Environment Variables</span>,
+            attach to <span className="font-medium text-foreground">Production</span> (and Preview if you use it),
+            then redeploy; <span className="font-mono">.env.local</span> is never deployed from git.
           </p>
         )}
 
@@ -184,7 +212,6 @@ export function SignInForm({ googleEnabled }: SignInFormProps) {
                 autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
                 required
               />
             </div>

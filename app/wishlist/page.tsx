@@ -4,8 +4,13 @@ import { SiteHeader } from '@/components/property/site-header'
 import { SiteFooter } from '@/components/property/site-footer'
 import { WishlistView } from '@/components/wishlist/wishlist-view'
 import { Button } from '@/components/ui/button'
+import { fetchAllProperties } from '@/lib/data/content'
 
-export default function WishlistPage() {
+export const revalidate = 60
+
+export default async function WishlistPage() {
+  const properties = await fetchAllProperties()
+
   return (
     <div className="min-h-screen flex flex-col">
       <SiteHeader />
@@ -17,7 +22,7 @@ export default function WishlistPage() {
               Back to home
             </Link>
           </Button>
-          <WishlistView />
+          <WishlistView properties={properties} />
         </div>
       </main>
       <SiteFooter />

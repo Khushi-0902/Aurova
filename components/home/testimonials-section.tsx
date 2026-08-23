@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from 'react'
 import { ChevronLeft, ChevronRight, MapPin, MessageSquareQuote, Sparkles, Star } from 'lucide-react'
-import { TESTIMONIALS } from '@/lib/home-marketing-data'
+import type { TestimonialItem } from '@/lib/data/content'
 import { Reveal } from '@/components/home/reveal'
 
 function StarRow({ n }: { n: number }) {
@@ -26,28 +26,31 @@ const ACCENTS = [
   { bar: 'from-violet-500 to-indigo-600', blob: 'bg-violet-400/25', ring: 'ring-violet-400/35', quote: 'text-violet-600/18' },
 ] as const
 
-export function TestimonialsSection() {
+export function TestimonialsSection({ testimonials }: { testimonials: TestimonialItem[] }) {
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [carouselIndex, setCarouselIndex] = useState(0)
 
-  const scrollToCard = useCallback((index: number) => {
-    const id = TESTIMONIALS[index]?.id
-    if (!id) return
-    document.getElementById(`testimonial-${id}`)?.scrollIntoView({
-      behavior: 'smooth',
-      inline: 'center',
-      block: 'nearest',
-    })
-    setCarouselIndex(index)
-  }, [])
+  const scrollToCard = useCallback(
+    (index: number) => {
+      const id = testimonials[index]?.id
+      if (!id) return
+      document.getElementById(`testimonial-${id}`)?.scrollIntoView({
+        behavior: 'smooth',
+        inline: 'center',
+        block: 'nearest',
+      })
+      setCarouselIndex(index)
+    },
+    [testimonials],
+  )
 
   const next = useCallback(() => {
-    scrollToCard((carouselIndex + 1) % TESTIMONIALS.length)
-  }, [carouselIndex, scrollToCard])
+    scrollToCard((carouselIndex + 1) % testimonials.length)
+  }, [carouselIndex, scrollToCard, testimonials.length])
 
   const prev = useCallback(() => {
-    scrollToCard((carouselIndex - 1 + TESTIMONIALS.length) % TESTIMONIALS.length)
-  }, [carouselIndex, scrollToCard])
+    scrollToCard((carouselIndex - 1 + testimonials.length) % testimonials.length)
+  }, [carouselIndex, scrollToCard, testimonials.length])
 
   const toggleExpand = (id: string) => {
     setExpandedId((cur) => (cur === id ? null : id))
@@ -98,7 +101,7 @@ export function TestimonialsSection() {
             <ChevronLeft className="size-5" aria-hidden />
           </button>
           <div className="flex items-center gap-1.5 px-2">
-            {TESTIMONIALS.map((t, i) => (
+            {testimonials.map((t, i) => (
               <button
                 key={t.id}
                 type="button"
@@ -124,7 +127,7 @@ export function TestimonialsSection() {
           className="mx-auto mt-8 flex max-w-6xl snap-x snap-mandatory gap-5 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] lg:mt-12 lg:grid lg:snap-none lg:grid-cols-2 lg:overflow-visible lg:pb-0 [&::-webkit-scrollbar]:hidden"
           style={{ WebkitOverflowScrolling: 'touch' }}
         >
-          {TESTIMONIALS.map((t, i) => {
+          {testimonials.map((t, i) => {
             const accent = ACCENTS[i % ACCENTS.length]
             const isExpanded = expandedId === t.id
             const dimOthers = expandedId != null && expandedId !== t.id

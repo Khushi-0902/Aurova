@@ -4,7 +4,7 @@ import type { LucideIcon } from 'lucide-react'
 import { Camera, Coffee, Laptop, LineChart, Music, Palette, Users } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useState } from 'react'
-import { DEMOGRAPHICS } from '@/lib/home-marketing-data'
+import type { DemographicItem } from '@/lib/data/content'
 import { Reveal } from '@/components/home/reveal'
 
 type Resident = {
@@ -140,7 +140,7 @@ const residents: Resident[] = [
 
 const DEMO_GRADIENTS = ['from-sky-400 to-blue-500', 'from-rose-400 to-pink-500', 'from-amber-400 to-orange-500'] as const
 
-export function CommunitySection() {
+export function CommunitySection({ demographics }: { demographics: DemographicItem[] }) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
   const totalCards = residents.length
   const middleIndex = Math.floor(totalCards / 2)
@@ -273,7 +273,7 @@ export function CommunitySection() {
 
         <Reveal delayMs={120}>
           <div className="mx-auto mt-16 grid max-w-3xl grid-cols-3 gap-3 sm:gap-4 md:mt-20">
-            {DEMOGRAPHICS.map((d, i) => (
+            {demographics.map((d, i) => (
               <div
                 key={d.label}
                 className="rounded-2xl border border-orange-200/30 bg-white/60 p-3 text-center shadow-sm transition duration-300 ease-out hover:-translate-y-0.5 hover:shadow-md motion-reduce:transition-none sm:p-4"

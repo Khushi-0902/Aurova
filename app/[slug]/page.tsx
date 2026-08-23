@@ -11,17 +11,25 @@ import { ReviewsSection } from '@/components/property/reviews-section'
 import { NearbyProperties } from '@/components/property/nearby-properties'
 import { BookingPanel } from '@/components/property/booking-panel'
 import { MobileCTA } from '@/components/property/mobile-cta'
-import { allProperties, getPropertyBySlug } from '@/lib/property-data'
+import { fetchAllProperties, fetchPropertyBySlug } from '@/lib/data/content'
+import { isSupabaseConfigured } from '@/lib/supabase/client'
 
 type PageProps = { params: Promise<{ slug: string }> }
 
-export function generateStaticParams() {
-  return allProperties.map((p) => ({ slug: p.slug }))
+// Refresh from Supabase at most once a minute; unknown slugs render on demand.
+export const revalidate = 60
+
+export async function generateStaticParams() {
+  // Skip pre-rendering when Supabase isn't configured (e.g. a fresh clone with
+  // no env vars) so the build doesn't fail; pages render on demand instead.
+  if (!isSupabaseConfigured()) return []
+  const properties = await fetchAllProperties()
+  return properties.map((p) => ({ slug: p.slug }))
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params
-  const property = getPropertyBySlug(slug)
+  const property = await fetchPropertyBySlug(slug)
   if (!property) {
     return { title: 'Property | Aurova' }
   }
@@ -33,7 +41,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function PropertyPage({ params }: PageProps) {
   const { slug } = await params
-  const property = getPropertyBySlug(slug)
+  const property = await fetchPropertyBySlug(slug)
   if (!property) {
     notFound()
   }

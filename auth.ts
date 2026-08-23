@@ -6,6 +6,7 @@ import { cookies } from 'next/headers'
 import { timingSafeEqual } from 'node:crypto'
 import { AUTH_OTP_PENDING_COOKIE } from '@/lib/auth-otp-cookie'
 import { verifyOtpChallenge } from '@/lib/otp-token'
+import { readGoogleOAuthEnv } from '@/lib/google-oauth-env'
 
 function timingSafeOtp(expected: string, actual: string): boolean {
   if (expected.length !== actual.length) return false
@@ -55,22 +56,42 @@ const emailOtpProvider = Credentials({
   },
 })
 
-const googleId = process.env.AUTH_GOOGLE_ID?.trim()
-const googleSecret = process.env.AUTH_GOOGLE_SECRET?.trim()
+/**
+ * Prefer explicit IDs when present so both Auth.js names (`AUTH_GOOGLE_*`) and
+ * common alternates (`GOOGLE_CLIENT_*`) work on any host. Otherwise `Google({})`
+ * lets setEnvDefaults fill from `AUTH_GOOGLE_*` only.
+ */
+const { clientId: googleClientId, clientSecret: googleClientSecret } = readGoogleOAuthEnv()
+const googleProvider =
+  googleClientId && googleClientSecret
+    ? Google({ clientId: googleClientId, clientSecret: googleClientSecret })
+    : Google({})
 
-const providers: NextAuthConfig['providers'] =
-  googleId && googleSecret
-    ? [
-        Google({
-          clientId: googleId,
-          clientSecret: googleSecret,
-        }),
-        emailOtpProvider,
-      ]
-    : [emailOtpProvider]
+const providers: NextAuthConfig['providers'] = [googleProvider, emailOtpProvider]
 
 export const authConfig = {
   trustHost: true,
+  /** Helps trace OAuth issues in the terminal during `npm run dev`. */
+  debug: process.env.NODE_ENV === 'development',
+  secret: process.env.AUTH_SECRET,
+  /**
+   * Always log auth failures to stdout/stderr so they show in the terminal
+   * (`npm run dev`) or host logs (Vercel → Deployment → Logs).
+   */
+  logger: {
+    error(error) {
+      const e = error as Error & { type?: string; cause?: unknown }
+      console.error('[auth][error]', e.type ?? e.name, e.message, e.cause ?? e.stack)
+    },
+    warn(code) {
+      console.warn('[auth][warn]', code)
+    },
+    debug(code, ...metadata: unknown[]) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[auth][debug]', code, ...metadata)
+      }
+    },
+  },
   pages: {
     signIn: '/auth/signin',
   },
@@ -78,9 +99,10 @@ export const authConfig = {
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.sub = user.id ?? user.email ?? undefined
-        if (user.email) token.email = user.email
-        if (user.name) token.name = user.name
+        const u = user as { id?: string; sub?: string; email?: string | null; name?: string | null }
+        token.sub = u.id ?? u.sub ?? (u.email ? String(u.email) : undefined)
+        if (u.email) token.email = u.email
+        if (u.name) token.name = u.name
       }
       return token
     },

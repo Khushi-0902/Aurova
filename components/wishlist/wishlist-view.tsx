@@ -4,15 +4,15 @@ import Link from 'next/link'
 import { Heart, MapPin } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { allProperties } from '@/lib/property-data'
+import type { Property } from '@/lib/property-data'
 import { useWishlist } from '@/components/wishlist/wishlist-provider'
 
-export function WishlistView() {
+export function WishlistView({ properties }: { properties: Property[] }) {
   const { slugs, removeWishlist, hydrated } = useWishlist()
 
   const saved = hydrated
     ? slugs
-        .map((slug) => allProperties.find((p) => p.slug === slug))
+        .map((slug) => properties.find((p) => p.slug === slug))
         .filter((p): p is NonNullable<typeof p> => Boolean(p))
     : []
 

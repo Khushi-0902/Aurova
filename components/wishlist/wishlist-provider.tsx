@@ -4,9 +4,8 @@ import {
   createContext,
   useCallback,
   useContext,
-  useLayoutEffect,
+  useEffect,
   useMemo,
-  useRef,
   useState,
   type ReactNode,
 } from 'react'
@@ -31,60 +30,131 @@ type WishlistContextValue = {
 
 const WishlistContext = createContext<WishlistContextValue | null>(null)
 
+function normalizeSlug(slug: string): string {
+  return slug.trim().toLowerCase()
+}
+
+/** POST/PUT to the wishlist API. Returns the server's slugs, or null if the
+ *  API isn't available (not signed in server-side, or DB sync not configured),
+ *  so callers can fall back to localStorage. */
+async function callWishlistApi(
+  method: 'POST' | 'PUT',
+  slugs: string[],
+): Promise<string[] | null> {
+  try {
+    const res = await fetch('/api/wishlist', {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slugs }),
+    })
+    if (!res.ok) return null
+    const data = (await res.json()) as { slugs?: unknown }
+    return Array.isArray(data.slugs) ? (data.slugs as string[]) : null
+  } catch {
+    return null
+  }
+}
+
 export function WishlistProvider({ children }: { children: ReactNode }) {
   const { data: session, status } = useSession()
+  const email = session?.user?.email ? normalizeSlug(session.user.email) : null
+
   const [slugs, setSlugs] = useState<string[]>([])
   const [hydrated, setHydrated] = useState(false)
-  const loadedStorageKeyRef = useRef<string | null>(null)
 
-  const storageKey =
-    status === 'authenticated' && session?.user?.email
-      ? wishlistUserKey(session.user.email)
-      : WISHLIST_ANON_KEY
-
-  useLayoutEffect(() => {
+  // Runs when the auth identity settles or changes (guest ↔ a signed-in user).
+  useEffect(() => {
     if (status === 'loading') return
     if (typeof window === 'undefined') return
 
-    if (loadedStorageKeyRef.current === storageKey) return
-
-    if (status === 'authenticated' && session?.user?.email) {
-      const merged = mergeAnonymousWishlistIntoUser(session.user.email)
-      setSlugs(merged)
-    } else {
+    // Guest: localStorage only.
+    if (!email) {
       setSlugs(readWishlistSlugs(WISHLIST_ANON_KEY))
+      setHydrated(true)
+      return
     }
 
-    loadedStorageKeyRef.current = storageKey
+    // Signed in: show the cached list instantly, then reconcile with the DB.
+    const userKey = wishlistUserKey(email)
+    const guest = readWishlistSlugs(WISHLIST_ANON_KEY)
+    setSlugs(readWishlistSlugs(userKey))
     setHydrated(true)
-  }, [session?.user?.email, status, storageKey])
 
-  useLayoutEffect(() => {
-    if (!hydrated || status === 'loading') return
-    writeWishlistSlugs(storageKey, slugs)
-  }, [slugs, hydrated, storageKey, status])
+    let cancelled = false
+    void (async () => {
+      // Merge any guest saves into the account and get back the full list.
+      const merged = await callWishlistApi('POST', guest)
+      if (cancelled) return
+      if (merged) {
+        setSlugs(merged)
+        writeWishlistSlugs(userKey, merged) // keep a local cache for instant loads
+        if (guest.length > 0) localStorage.removeItem(WISHLIST_ANON_KEY)
+      } else {
+        // DB sync unavailable → preserve the old localStorage-only behaviour.
+        setSlugs(mergeAnonymousWishlistIntoUser(email))
+      }
+    })()
 
-  const isWishlisted = useCallback(
-    (slug: string) => slugs.includes(slug.trim().toLowerCase()),
-    [slugs],
+    return () => {
+      cancelled = true
+    }
+  }, [email, status])
+
+  // Persist a new set to the right place (DB + cache when signed in, else localStorage).
+  const persist = useCallback(
+    (next: string[]) => {
+      if (typeof window === 'undefined') return
+      if (email) {
+        writeWishlistSlugs(wishlistUserKey(email), next)
+        void callWishlistApi('PUT', next)
+      } else {
+        writeWishlistSlugs(WISHLIST_ANON_KEY, next)
+      }
+    },
+    [email],
   )
 
-  const addWishlist = useCallback((slug: string) => {
-    const s = slug.trim().toLowerCase()
-    if (!s) return
-    setSlugs((prev) => (prev.includes(s) ? prev : [...prev, s]))
-  }, [])
+  const isWishlisted = useCallback((slug: string) => slugs.includes(normalizeSlug(slug)), [slugs])
 
-  const removeWishlist = useCallback((slug: string) => {
-    const s = slug.trim().toLowerCase()
-    setSlugs((prev) => prev.filter((x) => x !== s))
-  }, [])
+  const addWishlist = useCallback(
+    (slug: string) => {
+      const s = normalizeSlug(slug)
+      if (!s) return
+      setSlugs((prev) => {
+        if (prev.includes(s)) return prev
+        const next = [...prev, s]
+        persist(next)
+        return next
+      })
+    },
+    [persist],
+  )
 
-  const toggleWishlist = useCallback((slug: string) => {
-    const s = slug.trim().toLowerCase()
-    if (!s) return
-    setSlugs((prev) => (prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]))
-  }, [])
+  const removeWishlist = useCallback(
+    (slug: string) => {
+      const s = normalizeSlug(slug)
+      setSlugs((prev) => {
+        if (!prev.includes(s)) return prev
+        const next = prev.filter((x) => x !== s)
+        persist(next)
+        return next
+      })
+    },
+    [persist],
+  )
+
+  const toggleWishlist = useCallback(
+    (slug: string) => {
+      const s = normalizeSlug(slug)
+      if (!s) return
+      setSlugs((prev) => {
+        const next = prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]
+        persist(next)
+        return next
+      })
+    },
+    [persist],
+  )
 
   const value = useMemo(
     () => ({

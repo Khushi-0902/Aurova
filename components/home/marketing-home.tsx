@@ -33,7 +33,7 @@ import {
   TrendingUp,
   Users,
 } from 'lucide-react'
-import { SEARCH_AREA_VALUES, type HomePropertyCard } from '@/lib/property-data'
+import { SEARCH_AREA_VALUES } from '@/lib/property-data'
 import { CartoonCrosswalkLane } from '@/components/home/cartoon-crosswalk'
 import { CommunitySection } from '@/components/home/community-section'
 import { Reveal } from '@/components/home/reveal'
@@ -44,10 +44,10 @@ import { cn } from '@/lib/utils'
 import {
   filterFeaturedListings,
   budgetKeyToMaxMonthly,
-  getFeaturedListings,
-  STATS,
   type FeaturedBadge,
+  type FeaturedListing,
 } from '@/lib/home-marketing-data'
+import type { DemographicItem, StatItem, TestimonialItem } from '@/lib/data/content'
 import { PHONE_DISPLAY, PHONE_TEL, WHATSAPP_URL } from '@/lib/contact'
 
 const FEATURED_PAGE_SIZE = 4
@@ -184,7 +184,10 @@ function WishlistCardHeart({ slug }: { slug: string }) {
 }
 
 type MarketingHomeProps = {
-  properties: HomePropertyCard[]
+  featured: FeaturedListing[]
+  stats: StatItem[]
+  testimonials: TestimonialItem[]
+  demographics: DemographicItem[]
 }
 
 function Pill({ children, className = '' }: { children: ReactNode; className?: string }) {
@@ -324,8 +327,8 @@ function higherBudgetSuggestions(currentBudget: string): { value: string; label:
   return BUDGET_ORDER.slice(i + 1).map((value) => ({ value, label: budgetOptionLabel(value) }))
 }
 
-export function MarketingHome({ properties }: MarketingHomeProps) {
-  const allFeatured = useMemo(() => getFeaturedListings(properties), [properties])
+export function MarketingHome({ featured, stats, testimonials, demographics }: MarketingHomeProps) {
+  const allFeatured = featured
   const [location, setLocation] = useState('')
   const [budget, setBudget] = useState('')
 
@@ -887,7 +890,7 @@ export function MarketingHome({ properties }: MarketingHomeProps) {
         </div>
       </section>
 
-      <CommunitySection />
+      <CommunitySection demographics={demographics} />
 
       {/* Stats */}
       <section className="relative overflow-hidden px-4 py-16 sm:px-6 sm:py-20">
@@ -914,7 +917,7 @@ export function MarketingHome({ properties }: MarketingHomeProps) {
           </Reveal>
 
           <div className="mx-auto mt-10 grid gap-5 sm:grid-cols-2 lg:mt-12 lg:grid-cols-4">
-            {STATS.map((s, i) => {
+            {stats.map((s, i) => {
               const hovered = statHover === s.id
               const Icon =
                 s.icon === 'users' ? Users : s.icon === 'map' ? MapPin : s.icon === 'trend' ? TrendingUp : Award
@@ -1042,7 +1045,7 @@ export function MarketingHome({ properties }: MarketingHomeProps) {
         </div>
       </section>
 
-      <TestimonialsSection />
+      <TestimonialsSection testimonials={testimonials} />
 
       {/* CTA */}
       <section className="px-4 pb-6 pt-4 sm:px-6">

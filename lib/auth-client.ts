@@ -29,17 +29,12 @@ export async function getCsrfToken(): Promise<string> {
   return data.csrfToken ?? ''
 }
 
-type SignInOptions = {
-  callbackUrl?: string
-  redirect?: boolean
-} & Record<string, string | undefined>
-
 /**
  * Mirrors Auth.js client `signIn` for credentials + OAuth starters.
  */
 export async function signIn(
   providerId: string,
-  options?: SignInOptions,
+  options?: Record<string, string | boolean | undefined>,
 ): Promise<{ ok: boolean; error?: string; url?: string } | void> {
   const callbackUrl = options?.callbackUrl ?? (typeof window !== 'undefined' ? window.location.href : '/')
   const redirect = options?.redirect !== false
