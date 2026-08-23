@@ -14,8 +14,8 @@ export interface FeaturedListing {
   /** Lowest room rent for this listing (same as card “from” price) */
   priceMonthly: number
   badge: FeaturedBadge
-  /** Must match home location filter option */
-  areaKey: SearchAreaValue
+  /** Must match home location filter option (empty if it can't be inferred) */
+  areaKey: SearchAreaValue | ''
 }
 
 /** Budget `<select>` values → max monthly rent (₹) for “from” price on lowest room */
@@ -38,34 +38,31 @@ export function filterFeaturedListings(
   })
 }
 
+/** Badge assigned to each real property card, cycling for visual variety. */
+const LIVE_BADGES: FeaturedBadge[] = ['premium', 'featured', 'popular', 'new']
+
 /**
- * Builds the featured list: the first live property (as a "premium" card),
- * followed by the "coming soon" placeholders loaded from the database.
+ * Builds the featured list: every published property (real, clickable cards),
+ * followed by the "coming soon" placeholders loaded from the database. Real
+ * properties are ordered by their `sort_order` (already applied to `live`), so
+ * the grid grows automatically as you add homes.
  */
 export function getFeaturedListings(
   live: HomePropertyCard[],
   comingSoon: FeaturedListing[],
 ): FeaturedListing[] {
-  const out: FeaturedListing[] = []
-  const first = live[0]
-  if (first) {
-    const area = first.areaKey || inferAreaKeyFromLabel(first.location)
-    if (area) {
-      out.push({
-        id: first.slug,
-        slug: first.slug,
-        name: first.name,
-        location: first.location,
-        image: first.image,
-        beds: 4,
-        baths: 3,
-        sqft: 1850,
-        priceMonthly: first.rentFrom,
-        badge: 'premium',
-        areaKey: area,
-      })
-    }
-  }
-  out.push(...comingSoon)
-  return out
+  const liveListings: FeaturedListing[] = live.map((card, i) => ({
+    id: card.slug,
+    slug: card.slug,
+    name: card.name,
+    location: card.location,
+    image: card.image,
+    beds: card.beds,
+    baths: card.baths,
+    sqft: card.sqft,
+    priceMonthly: card.rentFrom,
+    badge: LIVE_BADGES[i % LIVE_BADGES.length],
+    areaKey: card.areaKey || inferAreaKeyFromLabel(card.location),
+  }))
+  return [...liveListings, ...comingSoon]
 }

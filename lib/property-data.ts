@@ -134,6 +134,21 @@ export interface HomePropertyCard {
   image: string
   /** Area label for search filters; from address/city when possible */
   areaKey: SearchAreaValue | ''
+  /** Bedrooms — the property's total rooms */
+  beds: number
+  /** Bathrooms — derived from room features */
+  baths: number
+  /** Floor area in sq ft */
+  sqft: number
+}
+
+/** Best-effort bathroom count from room features (the data has no explicit field). */
+function countBaths(p: Property): number {
+  const attached = p.rooms.filter((r) =>
+    r.features.some((f) => /attached/i.test(f) && /bath/i.test(f)),
+  ).length
+  const hasShared = p.rooms.some((r) => r.features.some((f) => /shared/i.test(f) && /bath/i.test(f)))
+  return Math.max(1, attached + (hasShared ? 1 : 0))
 }
 
 /** Pure: turn any list of properties into home-grid cards. */
@@ -149,6 +164,9 @@ export function buildHomePropertyCards(properties: Property[]): HomePropertyCard
       rentFrom,
       image: hero?.url ?? '',
       areaKey: inferPropertyAreaKey(p),
+      beds: p.totalRooms,
+      baths: countBaths(p),
+      sqft: p.area,
     }
   })
 }
